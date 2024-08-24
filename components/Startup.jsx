@@ -1,117 +1,134 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { PinchGestureHandler, PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-
-const MovableText = ({ text }) => {
-    const translateX = useSharedValue(0);
-    const translateY = useSharedValue(0);
-
-    const panHandler = useAnimatedGestureHandler({
-        onActive: (event) => {
-            translateX.value = event.translationX;
-            translateY.value = event.translationY;
-        },
-        onEnd: () => {
-            // Optionally apply boundaries or smooth transitions
-            translateX.value = withSpring(translateX.value);
-            translateY.value = withSpring(translateY.value);
-        }
-    });
-
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [
-                { translateX: translateX.value },
-                { translateY: translateY.value },
-            ],
-        };
-    });
-
-    return (
-        <PanGestureHandler onGestureEvent={panHandler}>
-            <Animated.View style={[styles.textContainer, animatedStyle]}>
-                <Text style={styles.chartText}>{text}</Text>
-            </Animated.View>
-        </PanGestureHandler>
-    );
-};
+import { PinchGestureHandler, TapGestureHandler } from 'react-native-gesture-handler';
+import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
 
 const Startup = () => {
     const scale = useSharedValue(1);
-    const containerTranslateX = useSharedValue(0);
-    const containerTranslateY = useSharedValue(0);
+    const [showMultipleNames, setShowMultipleNames] = useState(false);
+    const [showDeveloperTester, setShowDeveloperTester] = useState(false);
 
-    // Pinch gesture handler for zooming
     const pinchHandler = useAnimatedGestureHandler({
         onActive: (event) => {
             scale.value = event.scale;
         },
         onEnd: () => {
-            // Limit the zoom scale to a reasonable range
-            if (scale.value < 1) {
-                scale.value = withSpring(1);
-            } else if (scale.value > 3) {
-                scale.value = withSpring(3);
+            if (scale.value > 2 && !showMultipleNames) {
+                // Zoom in to full screen and then show "Project Manager"
+                scale.value = withSpring(2, {}, () => {
+                    runOnJS(setShowMultipleNames)(true);
+                });
+            } else if (scale.value < 0.5 && showMultipleNames) {
+                // Zoom out to original size and show all names
+                scale.value = withSpring(1, {}, () => {
+                    runOnJS(setShowMultipleNames)(false);
+                });
+            } else {
+                scale.value = withSpring(1); // Reset scale if conditions are not met
             }
         }
     });
 
-    // Pan gesture handler for moving the entire container
-    const panHandler = useAnimatedGestureHandler({
-        onActive: (event) => {
-            containerTranslateX.value = event.translationX;
-            containerTranslateY.value = event.translationY;
-        },
+    const tapHandler = useAnimatedGestureHandler({
         onEnd: () => {
-            // Optionally apply boundaries or smooth transitions
-            containerTranslateX.value = withSpring(containerTranslateX.value);
-            containerTranslateY.value = withSpring(containerTranslateY.value);
+            if (showMultipleNames) {
+                runOnJS(setShowDeveloperTester)(true);
+            }
         }
     });
 
-    const containerStyle = useAnimatedStyle(() => {
+    const animatedStyle = useAnimatedStyle(() => {
         return {
-            transform: [
-                { scale: scale.value },
-                { translateX: containerTranslateX.value },
-                { translateY: containerTranslateY.value },
-            ],
+            transform: [{ scale: scale.value }],
         };
     });
 
     return (
-        <PinchGestureHandler onGestureEvent={pinchHandler}>
-            <Animated.View style={styles.container}>
-                <PanGestureHandler onGestureEvent={panHandler}>
-                    <Animated.View style={[styles.content, containerStyle]}>
-                        <MovableText text="Hello World" />
-                        <MovableText text="Name 1" />
-                        <MovableText text="Name 2" />
-                        <MovableText text="Name 3" />
-                    </Animated.View>
-                </PanGestureHandler>
-            </Animated.View>
-        </PinchGestureHandler>
+        <View style={styles.containerSetup}>
+            <PinchGestureHandler onGestureEvent={pinchHandler}>
+                <Animated.View style={animatedStyle}>
+                    <TapGestureHandler numberOfTaps={2} onGestureEvent={tapHandler}>
+                        <Animated.View style={styles.touchableArea}>
+                            {!showMultipleNames ? (
+                                <View style={styles.firstContain}>
+                                    <Text style={styles.nameText}>Roriri Software</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.secondContain}>
+                                    {showDeveloperTester ? (
+                                        <>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>Developer</Text>
+                                            </View>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>Tester</Text>
+                                            </View>
+                                        </>
+                                    ) : scale.value > 2 ? (
+                                        <View style={styles.box}>
+                                            <Text style={styles.chartText}>Project Manager</Text>
+                                        </View>
+                                    ) : (
+                                        <>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>MD</Text>
+                                            </View>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>HR</Text>
+                                            </View>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>Project Manager</Text>
+                                            </View>
+                                            <View style={styles.box}>
+                                                <Text style={styles.chartText}>Marketing Manager</Text>
+                                            </View>
+                                        </>
+                                    )}
+                                </View>
+                            )}
+                        </Animated.View>
+                    </TapGestureHandler>
+                </Animated.View>
+            </PinchGestureHandler>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    containerSetup: {
         flex: 1,
         backgroundColor: 'white',
-    },
-    content: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    textContainer: {
-        marginVertical: 10,
+    firstContain: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    secondContain: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    nameText: {
+        fontSize: 30,
+        fontWeight: 'bold',
     },
     chartText: {
         fontSize: 20,
         marginVertical: 5,
+    },
+    box: {
+        padding: 10,
+        borderWidth: 2,
+        borderColor: 'black',
+        backgroundColor: 'lightgray',
+        borderRadius: 10,
+        marginVertical: 5,
+        alignItems: 'center',
+    },
+    touchableArea: {
+        alignItems: 'center',
+        justifyContent: 'center',
     }
 });
 
