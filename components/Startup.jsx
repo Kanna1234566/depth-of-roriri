@@ -1,41 +1,32 @@
-import React, { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { PinchGestureHandler, TapGestureHandler } from 'react-native-gesture-handler';
-import Animated, { useAnimatedGestureHandler, useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, Button } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnUI } from 'react-native-reanimated';
+import { PinchGestureHandler } from 'react-native-gesture-handler';
+
+const { width, height } = Dimensions.get("window");
 
 const Startup = () => {
-    const scale = useSharedValue(1);
-    const [showMultipleNames, setShowMultipleNames] = useState(false);
-    const [showDeveloperTester, setShowDeveloperTester] = useState(false);
+    const [zoomLevel, setZoomLevel] = useState(1); // Initial zoom level
+    const scale = useSharedValue(1); // Shared value for scale (zoom)
 
-    const pinchHandler = useAnimatedGestureHandler({
-        onActive: (event) => {
-            scale.value = event.scale;
-        },
-        onEnd: () => {
-            if (scale.value > 2 && !showMultipleNames) {
-                // Zoom in to full screen and then show "Project Manager"
-                scale.value = withSpring(2, {}, () => {
-                    runOnJS(setShowMultipleNames)(true);
-                });
-            } else if (scale.value < 0.5 && showMultipleNames) {
-                // Zoom out to original size and show all names
-                scale.value = withSpring(1, {}, () => {
-                    runOnJS(setShowMultipleNames)(false);
-                });
-            } else {
-                scale.value = withSpring(1); // Reset scale if conditions are not met
-            }
-        }
-    });
+    // Define the size and positioning of the boxes
+    const boxSize = 50; // Size of each box
+    const offset = 100; // Offset from the center to place the boxes
 
-    const tapHandler = useAnimatedGestureHandler({
-        onEnd: () => {
-            if (showMultipleNames) {
-                runOnJS(setShowDeveloperTester)(true);
-            }
-        }
-    });
+    // Define the coordinates and labels for the four boxes
+    const boxDetails = [
+        { top: height / 2 - offset - boxSize / 2, left: width / 2 - offset - boxSize / 2, text: zoomLevel >= 20 ? 'CEO\nHR' : 'MD' },
+        { top: height / 2 - offset - boxSize / 2, left: width / 2 + offset - boxSize / 2, text: zoomLevel >= 20 ? 'Project Manager\nMarketing Manager' : 'HR' },
+        { top: height / 2 + offset - boxSize / 2, left: width / 2 - offset - boxSize / 2, text: zoomLevel >= 20 ? 'Developer\nTester\nUI & UX' : 'Project Manager' },
+        { top: height / 2 + offset - boxSize / 2, left: width / 2 + offset - boxSize / 2, text: zoomLevel >= 20 ? 'Content Creator' : 'Marketing Manager' },
+    ];
+
+    const handlePinch = (event) => {
+        runOnUI(() => {
+            scale.value = withSpring(event.scale, { damping: 2 });
+            runOnJS(setZoomLevel)(Math.round(event.scale * 10)); // Update zoom level based on pinch scale
+        })();
+    };
 
     const animatedStyle = useAnimatedStyle(() => {
         return {
@@ -45,51 +36,23 @@ const Startup = () => {
 
     return (
         <View style={styles.containerSetup}>
-            <PinchGestureHandler onGestureEvent={pinchHandler}>
-                <Animated.View style={animatedStyle}>
-                    <TapGestureHandler numberOfTaps={2} onGestureEvent={tapHandler}>
-                        <Animated.View style={styles.touchableArea}>
-                            {!showMultipleNames ? (
-                                <View style={styles.firstContain}>
-                                    <Text style={styles.nameText}>Roriri Software</Text>
-                                </View>
-                            ) : (
-                                <View style={styles.secondContain}>
-                                    {showDeveloperTester ? (
-                                        <>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>Developer</Text>
-                                            </View>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>Tester</Text>
-                                            </View>
-                                        </>
-                                    ) : scale.value > 2 ? (
-                                        <View style={styles.box}>
-                                            <Text style={styles.chartText}>Project Manager</Text>
-                                        </View>
-                                    ) : (
-                                        <>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>MD</Text>
-                                            </View>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>HR</Text>
-                                            </View>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>Project Manager</Text>
-                                            </View>
-                                            <View style={styles.box}>
-                                                <Text style={styles.chartText}>Marketing Manager</Text>
-                                            </View>
-                                        </>
-                                    )}
-                                </View>
-                            )}
-                        </Animated.View>
-                    </TapGestureHandler>
+            <PinchGestureHandler onGestureEvent={handlePinch}>
+                <Animated.View style={[styles.boxesWrapper, animatedStyle]}>
+                    {/* Conditionally render the four boxes */}
+                    {boxDetails.map((box, index) => (
+                        <View key={index} style={[styles.boxContainer, { top: box.top, left: box.left }]}>
+                            <View style={styles.box}>
+                                <Text style={styles.boxText}>{box.text}</Text>
+                            </View>
+                        </View>
+                    ))}
+                    <View style={[styles.centerBox, animatedStyle]}>
+                        <Text style={styles.centerText}>Roriri Software Solution</Text>
+                    </View>
                 </Animated.View>
             </PinchGestureHandler>
+            <Text style={styles.zoomLevel}>Zoom Level: {zoomLevel}</Text>
+            <Button title="Reset Zoom" onPress={() => scale.value = withSpring(1)} style={styles.focusButton} />
         </View>
     );
 };
@@ -98,38 +61,66 @@ const styles = StyleSheet.create({
     containerSetup: {
         flex: 1,
         backgroundColor: 'white',
-        justifyContent: 'center',
+    },
+    boxesWrapper: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+    },
+    boxContainer: {
+        position: 'absolute',
         alignItems: 'center',
-    },
-    firstContain: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    secondContain: {
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    nameText: {
-        fontSize: 30,
-        fontWeight: 'bold',
-    },
-    chartText: {
-        fontSize: 20,
-        marginVertical: 5,
+        justifyContent: 'center',
     },
     box: {
-        padding: 10,
+        width: 50,
+        height: 50,
+        backgroundColor: 'rgba(255, 0, 0, 0.5)',
+        borderColor: 'rgba(0,0,0,0.5)',
         borderWidth: 2,
-        borderColor: 'black',
-        backgroundColor: 'lightgray',
-        borderRadius: 10,
-        marginVertical: 5,
-        alignItems: 'center',
-    },
-    touchableArea: {
         alignItems: 'center',
         justifyContent: 'center',
-    }
+        borderRadius: 5,
+    },
+    boxText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: 'white',
+        textAlign: 'center',
+    },
+    centerBox: {
+        position: 'absolute',
+        top: height / 2 - 25,
+        left: width / 2 - 75,
+        width: 150,
+        height: 50,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        borderRadius: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    centerText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'white',
+        textAlign: 'center',
+    },
+    zoomLevel: {
+        position: 'absolute',
+        top: 10,
+        left: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        color: 'white',
+        padding: 10,
+        borderRadius: 5,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    focusButton: {
+        position: 'absolute',
+        bottom: 50,
+        left: 20,
+    },
 });
 
 export default Startup;
