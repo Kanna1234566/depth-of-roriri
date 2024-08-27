@@ -1,80 +1,119 @@
+import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Button } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnUI } from 'react-native-reanimated';
-import { PinchGestureHandler } from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, Dimensions, FlatList, TouchableOpacity } from 'react-native';
+import { GestureHandlerRootView, PinchGestureHandler } from 'react-native-gesture-handler';
 
 const { width, height } = Dimensions.get("window");
 
 const Startup = () => {
-    const [zoomLevel, setZoomLevel] = useState(1); // Initial zoom level
-    const scale = useSharedValue(1); // Shared value for scale (zoom)
+    const [zoomLevels, setZoomLevels] = useState([1, 1, 1, 1]); 
+    const [initialZoom, setInitialZoom] = useState(1); 
+    const navigation = useNavigation();
 
-    // Define the size and positioning of the boxes
-    const boxSize = 50; // Size of each box
-    const offset = 100; // Offset from the center to place the boxes
+    const boxSize = 140;
 
-    // Define the coordinates and labels for the four boxes
     const boxDetails = [
-        { top: height / 2 - offset - boxSize / 2, left: width / 2 - offset - boxSize / 2, text: zoomLevel >= 20 ? 'CEO\nHR' : 'MD' },
-        { top: height / 2 - offset - boxSize / 2, left: width / 2 + offset - boxSize / 2, text: zoomLevel >= 20 ? 'Project Manager\nMarketing Manager' : 'HR' },
-        { top: height / 2 + offset - boxSize / 2, left: width / 2 - offset - boxSize / 2, text: zoomLevel >= 20 ? 'Developer\nTester\nUI & UX' : 'Project Manager' },
-        { top: height / 2 + offset - boxSize / 2, left: width / 2 + offset - boxSize / 2, text: zoomLevel >= 20 ? 'Content Creator' : 'Marketing Manager' },
+        { text1: 'MD', text2: 'CEO\nHR' },
+        { text1: 'HR', text2: 'Project Manager\nMarketing Manager' },
+        { text1: 'Project Manager', text2: 'Developer\nTester\nUI & UX' },
+        { text1: 'Marketing Manager', text2: 'Content Creator' },
     ];
 
-    const handlePinch = (event) => {
-        runOnUI(() => {
-            scale.value = withSpring(event.scale, { damping: 2 });
-            runOnJS(setZoomLevel)(Math.round(event.scale * 10)); // Update zoom level based on pinch scale
-        })();
+    const handleInitialPinch = ({ nativeEvent }) => {
+        const newScale = nativeEvent.scale;
+
+        setInitialZoom(newScale >= 1.5 ? 2 : 1);
     };
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: scale.value }],
-        };
-    });
+    const handlePinch = (index) => ({ nativeEvent }) => {
+        const newScale = nativeEvent.scale;
+
+        setZoomLevels(prevZoomLevels => {
+            const newZoomLevels = [...prevZoomLevels];
+            newZoomLevels[index] = newScale >= 1.5 ? 2 : 1;
+            return newZoomLevels;
+        });
+    };
+
+    const handleNavigate = () => {
+        navigation.navigate('MapZoom')
+    }
 
     return (
-        <View style={styles.containerSetup}>
-            <PinchGestureHandler onGestureEvent={handlePinch}>
-                <Animated.View style={[styles.boxesWrapper, animatedStyle]}>
-                    {/* Conditionally render the four boxes */}
-                    {boxDetails.map((box, index) => (
-                        <View key={index} style={[styles.boxContainer, { top: box.top, left: box.left }]}>
-                            <View style={styles.box}>
-                                <Text style={styles.boxText}>{box.text}</Text>
-                            </View>
+        <GestureHandlerRootView style={styles.containerSetup}>
+            <PinchGestureHandler onGestureEvent={handleInitialPinch}>
+                <View style={styles.container}>
+                    {initialZoom === 1 ? (
+                        <View style={styles.centerBox}>
+                            <Text style={styles.centerText}>
+                                Roriri Software Solution
+                            </Text>
                         </View>
-                    ))}
-                    <View style={[styles.centerBox, animatedStyle]}>
-                        <Text style={styles.centerText}>Roriri Software Solution</Text>
-                    </View>
-                </Animated.View>
+                    ) : (
+                        <View style={styles.boxesWrapper}>
+                            <FlatList
+                                data={boxDetails}
+                                keyExtractor={(item, index) => index.toString()}
+                                renderItem={({ item, index }) => (
+                                    <PinchGestureHandler onGestureEvent={handlePinch(index)}>
+                                        <View style={styles.boxContainer}>
+                                            <View style={[styles.box, { width: boxSize, height: boxSize }]}>
+                                                <Text style={styles.boxText}>
+                                                    {zoomLevels[index] === 2 ? item.text2 : item.text1}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </PinchGestureHandler>
+                                )}
+                                contentContainerStyle={styles.scrollViewContent}
+                            />
+                        </View>
+                    )}
+                   <TouchableOpacity style={styles.mapDir} onPress={handleNavigate}>
+                    <Text>Map View</Text>
+                   </TouchableOpacity>
+                </View>
             </PinchGestureHandler>
-            <Text style={styles.zoomLevel}>Zoom Level: {zoomLevel}</Text>
-            <Button title="Reset Zoom" onPress={() => scale.value = withSpring(1)} style={styles.focusButton} />
-        </View>
+        </GestureHandlerRootView>
     );
 };
 
 const styles = StyleSheet.create({
+
+    mapDir:{
+        position:"absolute",
+        bottom:20,
+        left:20,
+        backgroundColor:"#2af53b",
+        color:'white',
+        padding:15,
+        borderRadius:10
+    },
     containerSetup: {
         flex: 1,
         backgroundColor: 'white',
     },
+    container: {
+        flex: 1,
+    },
     boxesWrapper: {
-        position: 'absolute',
-        width: '100%',
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: width,
+        height: height,
+    },
+    scrollViewContent: {
+        alignItems: 'center',
+        justifyContent: 'center',
         height: '100%',
     },
     boxContainer: {
-        position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
+        marginVertical: 10,
     },
     box: {
-        width: 50,
-        height: 50,
         backgroundColor: 'rgba(255, 0, 0, 0.5)',
         borderColor: 'rgba(0,0,0,0.5)',
         borderWidth: 2,
@@ -115,11 +154,6 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         fontSize: 16,
         fontWeight: 'bold',
-    },
-    focusButton: {
-        position: 'absolute',
-        bottom: 50,
-        left: 20,
     },
 });
 

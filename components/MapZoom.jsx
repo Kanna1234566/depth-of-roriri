@@ -1,31 +1,31 @@
+import { useNavigation } from "@react-navigation/native";
 import React, { useRef, useState } from "react";
-import { StyleSheet, Text, View, Dimensions, Button } from "react-native";
+import { StyleSheet, Text, View, Dimensions, Button, TouchableOpacity } from "react-native";
 import MapView, { Marker, Polygon } from 'react-native-maps';
 
 const { width, height } = Dimensions.get("window");
 
 const MapZoom = () => {
     const mapRef = useRef(null);
-    const [zoomLevel, setZoomLevel] = useState(1); // Initial zoom level
-    const [showBoxes, setShowBoxes] = useState(false); // State for showing boxes
-
-    // Define the coordinates for the rectangle
+    const [zoomLevel, setZoomLevel] = useState(1); 
+    const [showBoxes, setShowBoxes] = useState(false); 
+    const navigation = useNavigation();
+    
     const rectangleCoordinates = [
-        { latitude: 8.526, longitude: 77.579 }, // Top-left
-        { latitude: 8.526, longitude: 77.582 }, // Top-right
-        { latitude: 8.524, longitude: 77.582 }, // Bottom-right
-        { latitude: 8.524, longitude: 77.579 }, // Bottom-left
+        { latitude: 8.526, longitude: 77.579 }, 
+        { latitude: 8.526, longitude: 77.582 }, 
+        { latitude: 8.524, longitude: 77.582 }, 
+        { latitude: 8.524, longitude: 77.579 }, 
     ];
 
-    // Calculate center coordinates of the rectangle
+   
     const centerLatitude = (8.526 + 8.524) / 2;
     const centerLongitude = (77.579 + 77.582) / 2;
 
-    // Define the size and positioning of the boxes
-    const boxSize = 0.0005; // Size of each box
-    const offset = 0.0003; // Offset from the center to place the boxes
+    const boxSize = 0.0005; 
+    const offset = 0.0003; 
 
-    // Define the coordinates and labels for the four boxes inside the rectangle
+   
     const boxDetails = [
         { latitude: centerLatitude - offset, longitude: centerLongitude - offset, text: zoomLevel >= 20 ? 'CEO\nHR' : 'MD' },
         { latitude: centerLatitude - offset, longitude: centerLongitude + offset, text: zoomLevel >= 20 ? 'Project Manager\nMarketing Manager' : 'HR' },
@@ -40,16 +40,19 @@ const MapZoom = () => {
                 longitude: 77.58068405206389,
                 latitudeDelta: 0.001,
                 longitudeDelta: 0.001,
-            }, 1000); // 1000ms for animation duration
+            }, 1000); 
         }
     };
 
-    // Calculate zoom level based on region change
+    const handleNavigate = () => {
+        navigation.navigate('Startup')
+    }
+  
     const onRegionChange = (region) => {
         const zoom = Math.log2(360 * ((width / 256) / region.longitudeDelta)) - 1;
         const newZoomLevel = Math.round(zoom);
         setZoomLevel(newZoomLevel);
-        setShowBoxes(newZoomLevel >= 18); // Update visibility based on zoom level
+        setShowBoxes(newZoomLevel >= 18);
     };
 
     return (
@@ -65,7 +68,7 @@ const MapZoom = () => {
                 }}
                 onRegionChange={onRegionChange}
             >
-                {/* Polygon representing the rectangular box */}
+             
                 <Polygon
                     coordinates={rectangleCoordinates}
                     fillColor="rgba(0, 200, 0, 0.5)"
@@ -73,7 +76,7 @@ const MapZoom = () => {
                     strokeWidth={2}
                 />
 
-                {/* Conditionally render the four boxes inside the rectangle if zoom level is 18 or greater */}
+              
                 {showBoxes && boxDetails.map((box, index) => (
                     <View key={index} style={[styles.boxContainer, { top: height / 2, left: width / 2 }]}>
                         <Polygon
@@ -98,11 +101,11 @@ const MapZoom = () => {
                     </View>
                 ))}
 
-                {/* Marker to display the text inside the rectangle */}
+               
                 <Marker
                     coordinate={{
-                        latitude: 8.525, // Center point inside the rectangle
-                        longitude: 77.5805, // Center point inside the rectangle
+                        latitude: 8.525, 
+                        longitude: 77.5805, 
                     }}
                 >
                      {!showBoxes &&
@@ -111,13 +114,24 @@ const MapZoom = () => {
                     </View>}
                 </Marker>
             </MapView>
-            <Text style={styles.zoomLevel}>Zoom Level: {zoomLevel}</Text>
+            <TouchableOpacity style={styles.mapDir} onPress={handleNavigate}>
+                    <Text>Normal View</Text>
+                   </TouchableOpacity>
             <Button title="Focus on My Location" onPress={focusOnLocation} style={styles.focusButton} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    mapDir:{
+        position:"absolute",
+        bottom:20,
+        left:20,
+        backgroundColor:"#2af53b",
+        color:'white',
+        padding:15,
+        borderRadius:10
+    },
     containerSetup: {
         flex: 1,
         backgroundColor: 'white',
@@ -142,8 +156,8 @@ const styles = StyleSheet.create({
     },
     zoomLevel: {
         position: 'absolute',
-        top: 10,
-        left: 10,
+        top: 50,
+        left: 15,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         color: 'white',
         padding: 10,
